@@ -1,5 +1,4 @@
 import pathlib
-import re
 import shutil
 
 import streamlit as st
