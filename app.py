@@ -5,8 +5,9 @@ import streamlit as st
 from requests.exceptions import HTTPError
 from streamlit.components.v1 import html
 from pollination_streamlit.selectors import run_selector
-
+from pollination_streamlit.api.client import ApiClient
 from report import copy_static_assets, replace_links_in_report
+
 
 # https://app.pollination.cloud/projects/riennnnn-1000/demo/jobs/eb1f3afd-3c22-4003-aa1e-d41420ab7279/runs/a81a9fac-14d5-5ef2-84ca-d89ed80e2a23
 
@@ -15,7 +16,8 @@ from report import copy_static_assets, replace_links_in_report
 
 st.set_page_config(
     page_title='Visualize energy simulation results', layout='wide',
-    page_icon='https://app.pollination.cloud/favicon.ico'
+    page_icon='https://app.pollination.cloud/favicon.ico',
+    initial_sidebar_state='collapsed'
 )
 
 copy_static_assets()
@@ -35,20 +37,22 @@ def get_info(visualization_type) -> Tuple:
     return output_name, file_name
 
 
-st.cache(suppress_st_warning=True)
-
-
+@st.cache(suppress_st_warning=True)
 def download_results(run, viz_type) -> str:
     output_name, file_name = get_info(viz_type)
-    report_zip = run.download_zipped_output(output_name)
+    try:
+        report_zip = run.download_zipped_output(output_name)
+    except HTTPError as e:
+        st.error(
+            f'The run does not have {output_name} in its outputs.'
+            ' Try choosing a different visualization type in the sidebar.')
+        st.stop()
     zip = zipfile.ZipFile(report_zip)
     html_report = zip.read(file_name).decode('utf-8').strip()
     return replace_links_in_report(html_report)
 
 
-st.cache(suppress_st_warning=True)
-
-
+@st.cache(suppress_st_warning=True)
 def try_get_results(run, viz_type):
     try:
         html_report = download_results(run, viz_type)
@@ -72,17 +76,28 @@ st.header(
     'Visualize energy simulation results'
 )
 
+
+with st.sidebar:
+
+    st.image(
+        'https://uploads-ssl.webflow.com/6035339e9bb6445b8e5f77d7/616da00b76225ec0e4d975ba_pollination_brandmark-p-500.png',
+        use_column_width=True
+    )
+
+    viz_type = st.selectbox(
+        'Visualization style',
+        options=['2D', '3D', 'Combo']
+    )
+
+
 run = run_selector(
-    default='https://app.pollination.cloud/projects/chriswmackey/demo/jobs/67a49e35-38da-414c-ac24-6a739da46a87/runs/3243570c-850b-591e-aa11-09a0c8b69283',
+    client=ApiClient(),
+    default='https: // app.pollination.cloud/chriswmackey/projects/demo/jobs/67a49e35-38da-414c-ac24-6a739da46a87/runs/3243570c-850b-591e-aa11-09a0c8b69283',
     help='This application visualizes the results of any run that is using '
     '`ladybug-tools/annual-energy-use:0.3.6` recipe. Copy the URL to the run and press '
     'Enter.'
 )
 
-viz_type = st.sidebar.selectbox(
-    'Visualization style',
-    options=['2D', '3D', 'Combo']
-)
 
 if run is not None:
     # TODO: Find a way to check the version of the recipe for this run

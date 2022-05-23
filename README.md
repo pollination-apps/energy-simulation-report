@@ -1,4 +1,4 @@
-## UTCI-Heatmap App
+## energy-simulation-report App
 
 ![App](/images/app.png)
 
